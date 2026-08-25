@@ -60,7 +60,14 @@ ELSE(WIN32)
 
     set(USING_PREBUILT_LIBS FALSE)
     set(FFMPEG_PATH)
-    if (FFMPEG_USE_PRECOMPILED)
+    if (ANDROID AND ANDROID_FFMPEG_PATH)
+        # Android has no system FFmpeg and pkg-config would answer for the host,
+        # not the device. The OpenTouch tree already carries an arm64 build with
+        # the lib/ and include/ layout the prebuilt branch below expects, so take
+        # the caller's word for where it is.
+        set(FFMPEG_PATH "${ANDROID_FFMPEG_PATH}")
+        set(USING_PREBUILT_LIBS TRUE)
+    elseif (FFMPEG_USE_PRECOMPILED)
         get_prebuilt_path(PREBUILT_PATH)
         set(FFMPEG_PATH "${PREBUILT_PATH}/ffmpeg")
         set(USING_PREBUILT_LIBS TRUE)
@@ -97,7 +104,12 @@ ELSE(WIN32)
             # Use our libraries
             find_library(${name}_LOCATION ${name}
                 PATHS "${FFMPEG_PATH}/lib"
-                NO_DEFAULT_PATH)
+                NO_DEFAULT_PATH
+                # Cross builds re-root PATHS under CMAKE_FIND_ROOT_PATH - the NDK
+                # sets CMAKE_FIND_ROOT_PATH_MODE_LIBRARY to ONLY - so without this
+                # the prebuilt libraries are looked for inside the sysroot and
+                # never found, whatever FFMPEG_PATH says.
+                NO_CMAKE_FIND_ROOT_PATH)
 
             file(GLOB ${name}_LIBS "${FFMPEG_PATH}/lib/lib${name}*")
 

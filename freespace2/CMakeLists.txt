@@ -19,13 +19,28 @@ IF(MSVC60)
 	link_directories(${STLPORT_INCLUDE_LIB_DIRS})
 ENDIF(MSVC60)
 
-ADD_EXECUTABLE(Freespace2 ${EXE_GUI_TYPE} ${FREESPACE_SRC})
+if(ANDROID)
+	# An Android game is a shared library that SDLActivity loads and calls into,
+	# not a program with a main(). The name is what the launcher's roster asks
+	# System.loadLibrary for.
+	ADD_LIBRARY(Freespace2 SHARED ${FREESPACE_SRC})
+	SET_TARGET_PROPERTIES(Freespace2 PROPERTIES PREFIX "lib")
+	# liblog is Android's logging, which openal-soft calls; the rest is what any
+	# GLES game links.
+	TARGET_LINK_LIBRARIES(Freespace2 log android EGL GLESv3)
+else()
+	ADD_EXECUTABLE(Freespace2 ${EXE_GUI_TYPE} ${FREESPACE_SRC})
+endif()
 
 target_compile_features(Freespace2 PUBLIC cxx_std_17)
 
 include(resources.cmake)
 
-SET_TARGET_PROPERTIES(Freespace2 PROPERTIES OUTPUT_NAME "fs2_open_${FSO_BINARY_SUFFIX}")
+if(ANDROID)
+	SET_TARGET_PROPERTIES(Freespace2 PROPERTIES OUTPUT_NAME "FSO")
+else()
+	SET_TARGET_PROPERTIES(Freespace2 PROPERTIES OUTPUT_NAME "fs2_open_${FSO_BINARY_SUFFIX}")
+endif()
 
 TARGET_LINK_LIBRARIES(Freespace2 code)
 TARGET_LINK_LIBRARIES(Freespace2 platform)

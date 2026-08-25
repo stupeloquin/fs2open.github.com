@@ -21,6 +21,16 @@ if(PLATFORM_WINDOWS)
     install(FILES "${SDL3_ROOT_DIR}/README.md"
         DESTINATION ${BINARY_DESTINATION}
     )
+elseif(ANDROID AND ANDROID_SDL3_LIB)
+    # SDL3 is built by ndk-build for this app, into src/main/libs/<abi>, and the
+    # other engines import it the same way. Its OpenTouch build carries the extra
+    # entry points the touch overlay needs - SDL_SetSwapBufferCallBack and
+    # SDL_InjectMouse among them - so it must be that library and not one built
+    # here from the same source without them.
+    message(STATUS "Using the app's prebuilt SDL3: ${ANDROID_SDL3_LIB}")
+    add_library(sdl3 INTERFACE)
+    target_link_libraries(sdl3 INTERFACE "${ANDROID_SDL3_LIB}")
+    target_include_directories(sdl3 SYSTEM INTERFACE "${ANDROID_SDL3_INCLUDE}")
 elseif(PLATFORM_MAC)
     message(STATUS "Using pre-built SDL3 framework.")
 
