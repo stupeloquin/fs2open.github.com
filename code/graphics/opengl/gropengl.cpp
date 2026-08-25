@@ -189,6 +189,19 @@ void gr_opengl_flip()
 
 	current_viewport->swapBuffers();
 
+#ifdef __ANDROID__
+	/*
+	 * The touch overlay draws inside the swap, in this context, with its own
+	 * shaders and buffers - and it leaves the buffer bindings wherever it
+	 * finished. Nothing tells this cache about that, so it went on believing
+	 * the bindings it last set: the first array-buffer and the first uniform
+	 * buffer update of every frame then skipped their real bind and ran against
+	 * buffer name 0, which is two dropped uploads per frame and a screen with
+	 * almost nothing on it.
+	 */
+	GL_state.Array.InvalidateBufferBindings();
+#endif
+
 	opengl_tcache_frame();
 
 #ifndef NDEBUG

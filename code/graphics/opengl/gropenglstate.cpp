@@ -835,24 +835,46 @@ void opengl_array_state::BindUniformBufferBindingIndex(GLuint id, GLuint index)
 
 	uniform_buffer_index_bindings[index] = id;
 
-	// glBindBufferBase binds the generic binding point for the target as well as
-	// the indexed one, so the cache for it is now wrong. Left stale, the next
-	// BindUniformBuffer for what it thinks is already bound does nothing, and
-	// whatever was bound here stays - which on Android meant glBufferSubData
-	// hitting buffer name 0 and dropping most of the frame.
-	uniform_buffer = id;
+	/*
+	 * An indexed bind leaves the generic binding point for this target in a
+	 * state the cache can no longer vouch for, so mark it unknown rather than
+	 * guess at it.
+	 *
+	 * The spec says glBindBufferBase binds the generic point as well, and
+	 * recording `id` here was the first attempt at this - but reading the
+	 * binding back on Android gave 0 immediately after exactly that call, so the
+	 * guess was wrong and a stale cache then skipped the next real bind. Left
+	 * that way, glBufferSubData ran against buffer name 0 and the frame went
+	 * nowhere.
+	 */
+	uniform_buffer_valid = false;
 }
 
 void opengl_array_state::BindUniformBuffer(GLuint id)
 {
-	if ( uniform_buffer == id ) {
+	if ( uniform_buffer_valid && uniform_buffer == id ) {
 		return;
 	}
 
 	glBindBuffer(GL_UNIFORM_BUFFER, id);
 
 	uniform_buffer = id;
+	uniform_buffer_valid = true;
 }
+void opengl_array_state::InvalidateBufferBindings() {
+	array_buffer_valid = false;
+	element_array_buffer_valid = false;
+	uniform_buffer_valid = false;
+
+	for (int i = 0; i < MAX_UNIFORM_BUFFERS; ++i) {
+		uniform_buffer_index_bindings[i] = 0;
+	}
+
+	for (auto& bindingInfo : vertex_buffer_bindings) {
+		bindingInfo.valid_data = false;
+	}
+}
+
 void opengl_array_state::VertexArrayChanged() {
 	array_buffer_valid = false;
 	element_array_buffer_valid = false;

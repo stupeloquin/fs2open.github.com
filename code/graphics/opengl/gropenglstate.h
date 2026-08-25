@@ -129,7 +129,8 @@ class opengl_array_state
 		bool element_array_buffer_valid = false;
 
 		GLuint texture_array_buffer;
-		GLuint uniform_buffer;
+		GLuint uniform_buffer = 0;
+		bool uniform_buffer_valid = false;
 
 		GLuint uniform_buffer_index_bindings[MAX_UNIFORM_BUFFERS];
 
@@ -146,6 +147,14 @@ class opengl_array_state
 		 */
 		void VertexArrayChanged();
 	public:
+		/**
+		 * @brief Forget every cached buffer binding.
+		 *
+		 * For when something outside the engine has drawn into this context and
+		 * left the bindings where it pleased.
+		 */
+		void InvalidateBufferBindings();
+
 		opengl_array_state(): active_client_texture_unit(0), client_texture_units(NULL) {
 			for ( int i = 0; i < MAX_UNIFORM_BUFFERS; ++i ) {
 				uniform_buffer_index_bindings[i] = 0;
