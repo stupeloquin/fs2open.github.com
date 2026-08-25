@@ -1,6 +1,13 @@
 
 # We have precompiled libs for windows
-IF (WIN32)
+IF (ANDROID AND TARGET OpenAL)
+    # Android has no system OpenAL, so the caller builds openal-soft in this same
+    # tree. Link its target rather than a path: a path is not a rule Ninja knows
+    # how to build, and gives no ordering edge either.
+    add_library(openal INTERFACE)
+    target_link_libraries(openal INTERFACE OpenAL)
+    target_include_directories(openal SYSTEM INTERFACE "${OPENAL_INCLUDE_DIR}")
+ELSEIF (WIN32)
     get_prebuilt_path(PREBUILT_PATH)
 
     add_library(openal SHARED IMPORTED GLOBAL)

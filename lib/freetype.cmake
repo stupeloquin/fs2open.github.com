@@ -3,9 +3,17 @@ if(ANDROID AND ANDROID_FREETYPE_LIB)
 	# Android is a cross build, and the branch below answers a cross build with
 	# the Windows prebuilt - a .lib, which is not a thing here. Take the library
 	# and headers the caller built instead.
-	add_library(freetype INTERFACE)
-	target_include_directories(freetype INTERFACE "${ANDROID_FREETYPE_INCLUDE}")
-	target_link_libraries(freetype INTERFACE "${ANDROID_FREETYPE_LIB}")
+	#
+	# If the caller built freetype from source in the same CMake tree then the
+	# target already exists and is exactly what is wanted; defining a second one
+	# by that name is an error.
+	if(NOT TARGET freetype)
+		add_library(freetype INTERFACE)
+		target_include_directories(freetype INTERFACE "${ANDROID_FREETYPE_INCLUDE}")
+		target_link_libraries(freetype INTERFACE "${ANDROID_FREETYPE_LIB}")
+	endif()
+	# Nothing more to do: the target built from source already carries its own
+	# include directories and output path.
 elseif(PLATFORM_WINDOWS OR PLATFORM_MAC OR CMAKE_CROSSCOMPILING)
 	add_library(freetype INTERFACE)
 
