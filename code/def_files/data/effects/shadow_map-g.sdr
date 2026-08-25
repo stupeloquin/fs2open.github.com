@@ -1,5 +1,7 @@
 //? #version 150
+#ifndef OPENGL_ES
 #extension GL_ARB_gpu_shader5: enable
+#endif
 
 layout (triangles) in;
 layout (triangle_strip, max_vertices = 3) out;
@@ -45,7 +47,9 @@ void main(void)
 		}
 
 		gl_Layer = cascade_id;
+#ifndef OPENGL_ES
 		gl_ClipDistance[0] = gl_in[vert].gl_ClipDistance[0];
+#endif
 
 		EmitVertex();
 	}

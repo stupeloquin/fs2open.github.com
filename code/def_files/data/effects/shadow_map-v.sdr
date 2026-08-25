@@ -1,8 +1,12 @@
 //? #version 150
+#ifndef OPENGL_ES
 #extension GL_ARB_gpu_shader5: enable
+#endif
 
 #ifndef GEOMETRY_FALLBACK
+#ifndef OPENGL_ES
 #extension GL_ARB_shader_viewport_layer_array : enable
+#endif
 #endif
 
 #ifdef VULKAN
@@ -129,11 +133,13 @@ void main()
         gl_Position = position;
     }
 
+#ifndef OPENGL_ES
 	if (use_clip_plane != 0) {
 		gl_ClipDistance[0] = dot(clip_equation, modelMatrix * orient * vertex);
 	} else {
 		gl_ClipDistance[0] = 1.0;
 	}
+#endif
 
 #ifdef GEOMETRY_FALLBACK
     vertOut.normal = normal;

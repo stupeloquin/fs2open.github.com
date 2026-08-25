@@ -173,7 +173,7 @@ void main()
 				float dlstepalpha = textureGrad(volume_tex, dlsteppos, gradX, gradY).a * step(0, dlsteppos.x) * step(dlsteppos.x, 1) * step(0, dlsteppos.y) * step(dlsteppos.y, 1) * step(0, dlsteppos.z) * step(dlsteppos.z, 1);
 				directionalLightDepth += dlstepalpha * directionalLightStep;
 			}
-			stepcolor_diffuse *= beer_powder_norm * (1 - exp(-directionalLightDepth * 2.0)) * exp(-directionalLightDepth);
+			stepcolor_diffuse *= beer_powder_norm * (1.0 - exp(-directionalLightDepth * 2.0)) * exp(-directionalLightDepth);
 
 			//Emissive
 			cumnebdist += stepcolor_alpha * stepsize_current;

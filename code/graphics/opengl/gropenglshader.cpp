@@ -180,6 +180,10 @@ static SCP_string opengl_shader_get_header(shader_type type_id, int flags, bool 
 	sflags << "#version " << GLSL_version << " core\n";
 #else
 	sflags << "#version " << GLSL_version << " es\n";
+	// So a shader can tell which dialect it is being compiled as. The engine's
+	// shaders are written for desktop GL and a few of them enable ARB
+	// extensions, which have to be skipped here - see below for why.
+	sflags << "#define OPENGL_ES\n";
 #endif
 	sflags << "#define OPENGL\n";
 	sflags << shader_get_shadow_cascade_defines();
@@ -204,6 +208,30 @@ static SCP_string opengl_shader_get_header(shader_type type_id, int flags, bool 
 		sflags << shader_build_variant_defines(type_id, flags);
 	}
 
+#ifdef USE_OPENGL_ES
+	/*
+	 * GLES fragment shaders have no default precision for float, so every one
+	 * of these shaders fails to compile without a declaration - desktop GLSL
+	 * never asks the question, and these shaders were written for desktop GL.
+	 * highp is guaranteed in both stages from GLES 3.0 on, which is the floor
+	 * here, so it is the closest match to what the shaders assume.
+	 *
+	 * This has to be the last thing in the header: a precision declaration is a
+	 * non-preprocessor token, and #extension has to come before the first of
+	 * those. The shaders that enable ARB extensions are guarded with
+	 * OPENGL_ES for exactly that reason - the extensions do not exist here
+	 * anyway.
+	 */
+	sflags << "precision highp float;\n";
+	sflags << "precision highp int;\n";
+	sflags << "precision highp sampler2D;\n";
+	sflags << "precision highp sampler3D;\n";
+	sflags << "precision highp sampler2DArray;\n";
+	sflags << "precision highp samplerCube;\n";
+	sflags << "precision highp sampler2DShadow;\n";
+	sflags << "precision highp sampler2DArrayShadow;\n";
+#endif
+
 	return sflags.str();
 }
 
@@ -217,6 +245,52 @@ static SCP_string opengl_shader_get_header(shader_type type_id, int flags, bool 
  * @param flags		integer variable holding a combination of SDR_* flags
  * @return			C-string holding the complete shader source code
  */
+#ifdef USE_OPENGL_ES
+/**
+ * Give every fragment output an explicit location.
+ *
+ * Desktop GL lets the locations be assigned from the outside, which is what
+ * opengl_compile_shader does with glBindFragDataLocation - but that call does
+ * not exist in GLES, where a fragment shader with more than one output has to
+ * name its own locations or fail to link. The declarations are already regular
+ * enough to do this on the source: "out vec4 fragOutN;" at the start of a line.
+ *
+ * Doing it here rather than in the shaders keeps the two dialects from drifting
+ * apart, and leaves the layout(location = N) forms the Vulkan branches already
+ * carry alone.
+ */
+static void opengl_shader_add_frag_locations(SCP_string& source)
+{
+	const SCP_string decl = "out vec4 fragOut";
+
+	size_t at = 0;
+
+	while ((at = source.find(decl, at)) != SCP_string::npos) {
+		const size_t digit = at + decl.length();
+
+		// Only the bare declarations, and only a real one: a digit has to
+		// follow the name, and nothing but whitespace may precede it on the
+		// line - which is what rules out the layout(...) forms.
+		size_t line_start = source.rfind('\n', at);
+		line_start = (line_start == SCP_string::npos) ? 0 : line_start + 1;
+
+		const bool bare = source.find_first_not_of(" \t\r", line_start) == at;
+
+		if (!bare || digit >= source.length() || source[digit] < '0' || source[digit] > '9') {
+			at = digit;
+			continue;
+		}
+
+		SCP_string prefix = "layout(location = ";
+		prefix += source[digit];
+		prefix += ") ";
+
+		source.insert(at, prefix);
+		at += prefix.length() + decl.length();
+	}
+}
+#endif
+
 static SCP_vector<SCP_string>
 opengl_get_shader_content(shader_type type_id, const char* filename, int flags, bool has_geo_shader, bool spirv_shader)
 {
@@ -227,7 +301,14 @@ opengl_get_shader_content(shader_type type_id, const char* filename, int flags, 
 	} else {
 		parts.push_back(opengl_shader_get_header(type_id, flags, has_geo_shader));
 
-		parts.push_back(shader_preprocess_defines(filename, shader_preprocess_includes(filename, shader_load_source(filename))));
+		SCP_string body =
+			shader_preprocess_defines(filename, shader_preprocess_includes(filename, shader_load_source(filename)));
+
+#ifdef USE_OPENGL_ES
+		opengl_shader_add_frag_locations(body);
+#endif
+
+		parts.push_back(std::move(body));
 	}
 
 	return parts;
@@ -488,12 +569,17 @@ void opengl_compile_shader_actual(shader_type sdr, const uint &flags, opengl_sha
 				glBindAttribLocation(program->getShaderHandle(), (GLint)i, GL_vertex_attrib_info[i].name.c_str());
 			}
 
+#ifndef USE_OPENGL_ES
 			// bind fragment data locations before we link the shader
 			glBindFragDataLocation(program->getShaderHandle(), 0, "fragOut0");
 			glBindFragDataLocation(program->getShaderHandle(), 1, "fragOut1");
 			glBindFragDataLocation(program->getShaderHandle(), 2, "fragOut2");
 			glBindFragDataLocation(program->getShaderHandle(), 3, "fragOut3");
 			glBindFragDataLocation(program->getShaderHandle(), 4, "fragOut4");
+#endif
+			// GLES has no glBindFragDataLocation at all - the shader names its
+			// own locations instead, which opengl_shader_add_frag_locations
+			// writes into the source above.
 
 			if (do_shader_caching()) {
 				// Enable shader caching

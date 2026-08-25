@@ -1,7 +1,9 @@
 
 #ifndef VULKAN
 //? #version 150
+#ifndef OPENGL_ES
 #extension GL_ARB_gpu_shader5: enable
+#endif
 #endif
 #include "shadows.sdr"
 
@@ -244,11 +246,13 @@ void main()
 	#prereplace ENDIF_FLAG //MODEL_SDR_FLAG_TRANSFORM
 
 	// Clip plane
+#ifndef OPENGL_ES
 	if(use_clip_plane != 0) {
 		gl_ClipDistance[0] = dot(clip_equation, modelMatrix * orient * vertex);
 	} else {
 		gl_ClipDistance[0] = 1.0;
 	}
+#endif
 
 	vertOut.position = position;
 	vertOut.normal = normal;

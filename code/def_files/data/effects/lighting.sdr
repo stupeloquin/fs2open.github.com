@@ -57,7 +57,7 @@ vec3 ComputeGGX(vec3 specColor, vec3 diffColor, vec3 light, vec3 normal, vec3 ha
 
 
 
-	vec3 specular = distribution * fresnel * geometry / (4*dotNV*dotNL + 0.0001);
+	vec3 specular = distribution * fresnel * geometry / (4.0*dotNV*dotNL + 0.0001);
 	
 	// Diffuse term - Lambertian, kD represents energy lost to specular reflection.
 	vec3 kD = vec3(1.0)-fresnel;

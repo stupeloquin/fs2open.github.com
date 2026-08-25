@@ -144,6 +144,28 @@ SCP_string dump_stacktrace()
 // retrieve the current working directory
 int _getcwd(char *out_buf, unsigned int len)
 {
+#ifdef __ANDROID__
+	/*
+	 * The game folder is whatever the launcher was pointed at, and that can be
+	 * a scoped-storage location that only reaches the filesystem through
+	 * SAFFAL's interposed open/stat/opendir - a path chdir() cannot enter, so
+	 * the real working directory is still "/" and every relative path the
+	 * engine builds would miss. The framework passes the folder in HOME, so
+	 * that is the answer to "where am I" here.
+	 *
+	 * This is the only place it needs fixing: cf_build_root_list() takes the
+	 * game root from _getcwd(), and cfile_init() takes it from the string
+	 * freespace.cpp builds out of _getcwd().
+	 */
+	const char *home = getenv("HOME");
+
+	if (home && *home) {
+		strncpy(out_buf, home, len - 1);
+		out_buf[len - 1] = '\0';
+		return 1;
+	}
+#endif
+
 	if (getcwd(out_buf, len) == NULL) {
 		Error(__FILE__, __LINE__, "buffer overflow in getcwd (buf size = %u)", len);
 	}
@@ -154,6 +176,12 @@ int _getcwd(char *out_buf, unsigned int len)
 // change directory to specified path
 int _chdir(const char *path)
 {
+#ifdef __ANDROID__
+	// Nothing to change to - see _getcwd above. The engine only uses this to
+	// return to where it thinks it started, which is where it never left.
+	(void) path;
+	return 0;
+#else
 	int status = chdir(path);
 
 #ifndef NDEBUG
@@ -165,6 +193,7 @@ int _chdir(const char *path)
 #endif
 
 	return status;
+#endif
 }
 
 // make specified directory

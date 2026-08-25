@@ -438,3 +438,19 @@ int gameseq_get_state_instance_id(int depth) {
 
 	return gs[gs_current_stack - depth].instance_id;
 }
+
+#ifdef __ANDROID__
+/*
+ * Which control layout the OpenTouch overlay should show. It cannot ask the
+ * engine directly - the glue is built without FSO's headers - so this is the
+ * one thing the engine has to export for it.
+ *
+ * Only GS_STATE_GAME_PLAY counts as flying. The briefing, debriefing and
+ * loadout screens are mouse-driven UI like the main menu, and putting the
+ * flight sticks over them would swallow every touch.
+ */
+extern "C" int fso_touch_in_game(void)
+{
+	return gameseq_get_state() == GS_STATE_GAME_PLAY;
+}
+#endif

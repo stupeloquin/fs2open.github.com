@@ -1,4 +1,6 @@
+#ifndef OPENGL_ES
 #extension GL_ARB_gpu_shader5: enable
+#endif
 
 #conditional_include +"LARGE_SHADER" "main_large.sdr"
 #conditional_include -"LARGE_SHADER" "main_small.sdr"
@@ -165,9 +167,11 @@ out VertexOutput {
                 	vertOut.shadowPos = vertIn[vert].shadowPos;
                 #prereplace ENDIF_FLAG //MODEL_SDR_FLAG_SHADOWS
 
+#ifndef OPENGL_ES
 				if (use_clip_plane != 0) {
 					gl_ClipDistance[0] = gl_in[vert].gl_ClipDistance[0];
 				}
+#endif
 				EmitVertex();
 			}
 

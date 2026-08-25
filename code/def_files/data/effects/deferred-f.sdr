@@ -141,7 +141,7 @@ void GetLightInfo(vec3 position, in float alpha, in vec3 reflectDir, out vec3 li
 			dist = length(lightDirOut);
 			lightDist = dist;
 			// Energy conservation term
-			float alpha_adjust = clamp(alpha + (sourceRadius/(2*dist)), 0.0, 1.0);
+			float alpha_adjust = clamp(alpha + (sourceRadius/(2.0*dist)), 0.0, 1.0);
 			area_normalisation = alpha/alpha_adjust;
 			area_normalisation *= area_normalisation;
 			//end chunk
@@ -184,7 +184,7 @@ void GetLightInfo(vec3 position, in float alpha, in vec3 reflectDir, out vec3 li
 			float dist = length(lightDirOut);
 			lightDist = dist;
 			// Energy conservation term
-			float alpha_adjust = min(alpha + (sourceRadius/(2*dist)), 1.0);
+			float alpha_adjust = min(alpha + (sourceRadius/(2.0*dist)), 1.0);
 			area_normalisation = alpha/alpha_adjust;
 			// don't need to square as it's a line rather than a sphere.
 			//end chunk
@@ -235,7 +235,7 @@ void ComputeEnvLight(float alpha, float ao, vec3 light_dir, vec3 eyeDir, vec3 no
 	const float REZ_BIAS = log2(ENV_REZ * sqrt(3));
 
 	float alphaSqr = alpha * alpha;
-	float rough_bias = 0.5 * log2(2/alphaSqr - 1);
+	float rough_bias = 0.5 * log2(2.0/alphaSqr - 1.0);
 	float mip_bias = REZ_BIAS - rough_bias;
 
 	// Sample light, using mip bias to blur it.

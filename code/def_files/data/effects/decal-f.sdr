@@ -124,7 +124,7 @@ vec3 getPixelNormal(vec3 frag_position, vec2 tex_coord, inout float alpha, out v
 	}
 
 	// Make a smooth alpha transition leading up to an edge
-	alpha = alpha * (1 - smoothstep(angle_fade_start, normal_angle_cutoff, angle));
+	alpha = alpha * (1.0 - smoothstep(angle_fade_start, normal_angle_cutoff, angle));
 
 	return normal;
 }
