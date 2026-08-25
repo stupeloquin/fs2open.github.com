@@ -10,7 +10,11 @@ include(CheckSymbolExists)
 include(CheckCXXSymbolExists)
 include(CheckTypeSize)
 
-CHECK_INCLUDE_FILE("execinfo.h" SCP_HAVE_EXECINFO_H)
+# The header alone is not enough to go on. Bionic ships execinfo.h but only
+# declares backtrace() when building against API 33 or newer, so a header-only
+# check says yes on Android and then stubs.cpp fails to compile at a lower API
+# level. Ask for the function.
+CHECK_SYMBOL_EXISTS(backtrace "execinfo.h" SCP_HAVE_EXECINFO_H)
 CHECK_INCLUDE_FILE_CXX("cxxabi.h" SCP_HAVE_CXXAPI_H)
 
 CHECK_TYPE_SIZE("max_align_t" MAX_ALIGN_T)

@@ -732,7 +732,14 @@ void gr_opengl_shadow_map_start(matrix4 *shadow_view_matrix, const matrix *light
 
 		glClear(GL_DEPTH_BUFFER_BIT);
 
+#ifndef USE_OPENGL_ES
+		// Depth clamping is desktop GL only - GLES has it just as the optional
+		// EXT_depth_clamp, which is not in glad's GLES headers. Without it,
+		// geometry crossing the near plane is clipped rather than flattened
+		// against it, so watch this spot if something in the distance shows a
+		// hard edge where it used to pass through the near plane.
 		glEnable(GL_DEPTH_CLAMP);
+#endif
 
 		Glowpoint_override_save = Glowpoint_override;
 		Glowpoint_override = true;
@@ -753,7 +760,9 @@ void gr_opengl_shadow_map_end()
 {
 	gr_end_view_matrix();
 
+#ifndef USE_OPENGL_ES
 	glDisable(GL_DEPTH_CLAMP);
+#endif
 
 	gr_zbuffer_set(ZBUFFER_TYPE_FULL);
 	GL_state.PopFramebufferState();

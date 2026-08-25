@@ -6,7 +6,9 @@
 #include <direct.h>
 #endif
 
-#if !defined __APPLE_CC__ && defined SCP_UNIX
+// GLX is X11's binding for GL. Android is SCP_UNIX but has no X11 - it reaches
+// GL through EGL, which SDL owns - so the loader must not be pulled in here.
+#if !defined __APPLE_CC__ && defined SCP_UNIX && !defined __ANDROID__
 #include<glad/glad_glx.h>
 //Required because X defines none and always, which is used later
 #undef None
@@ -15,6 +17,15 @@
 
 #include "gropengl.h"
 #include "ShaderProgram.h"
+
+#ifdef USE_OPENGL_ES
+// A desktop-GL extension for writing gl_ViewportIndex and gl_Layer from a vertex
+// shader. There is no GLES equivalent and glad's GLES headers do not declare it,
+// while the other two extensions tested beside it are declared. Reporting it
+// absent is the truthful answer: it turns off the layered-viewport path, which is
+// what a device without the extension has to do anyway.
+#define GLAD_GL_ARB_shader_viewport_layer_array 0
+#endif
 #include "gropenglbmpman.h"
 #include "gropengldeferred.h"
 #include "gropengldraw.h"
@@ -1394,7 +1405,7 @@ bool gr_opengl_init(std::unique_ptr<os::GraphicsOperations>&& graphicsOps)
 		Error(LOCATION, "Failed to load OpenGL!");
 	}
 
-#if !defined __APPLE_CC__ && defined SCP_UNIX
+#if !defined __APPLE_CC__ && defined SCP_UNIX && !defined __ANDROID__
 	if (!gladLoadGLXLoader(GL_context->getLoaderFunction(), nullptr, 0)) {
 		Error(LOCATION, "Failed to load GLX!");
 	}
