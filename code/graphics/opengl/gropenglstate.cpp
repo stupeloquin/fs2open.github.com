@@ -834,6 +834,13 @@ void opengl_array_state::BindUniformBufferBindingIndex(GLuint id, GLuint index)
 	glBindBufferBase(GL_UNIFORM_BUFFER, index, id);
 
 	uniform_buffer_index_bindings[index] = id;
+
+	// glBindBufferBase binds the generic binding point for the target as well as
+	// the indexed one, so the cache for it is now wrong. Left stale, the next
+	// BindUniformBuffer for what it thinks is already bound does nothing, and
+	// whatever was bound here stays - which on Android meant glBufferSubData
+	// hitting buffer name 0 and dropping most of the frame.
+	uniform_buffer = id;
 }
 
 void opengl_array_state::BindUniformBuffer(GLuint id)

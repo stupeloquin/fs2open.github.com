@@ -747,9 +747,59 @@ namespace os
 			return false;
 		}
 
+		/**
+		 * @brief The window an event is attributed to, or 0 if it names none.
+		 */
+		static Uint32 getWindowIdForEvent(const SDL_Event& e)
+		{
+			if ((e.type >= SDL_EVENT_WINDOW_FIRST) && (e.type <= SDL_EVENT_WINDOW_LAST)) {
+				return e.window.windowID;
+			}
+
+			switch (e.type) {
+			case SDL_EVENT_KEY_DOWN:
+			case SDL_EVENT_KEY_UP:
+				return e.key.windowID;
+			case SDL_EVENT_TEXT_EDITING:
+				return e.edit.windowID;
+			case SDL_EVENT_TEXT_INPUT:
+				return e.text.windowID;
+			case SDL_EVENT_MOUSE_MOTION:
+				return e.motion.windowID;
+			case SDL_EVENT_MOUSE_BUTTON_DOWN:
+			case SDL_EVENT_MOUSE_BUTTON_UP:
+				return e.button.windowID;
+			case SDL_EVENT_MOUSE_WHEEL:
+				return e.wheel.windowID;
+			default:
+				// No window id of its own; isWindowEvent lets these through.
+				return SDL_GetWindowID(getSDLMainWindow());
+			}
+		}
+
 		bool isWindowEvent(const SDL_Event& e, SDL_Window* window)
 		{
 			auto mainId = SDL_GetWindowID(window);
+
+#ifdef __ANDROID__
+			/*
+			 * Synthetic input counts as ours. The touch overlay feeds the game
+			 * through SDL - an on-screen key becomes a real key event, a tap
+			 * becomes motion and a button - and some of that is generated
+			 * without a window to attribute it to, either because the injector
+			 * has none to name or because SDL stamps it from a keyboard focus
+			 * that is not this window. Dropping it here left the on-screen
+			 * keyboard and the pointer doing nothing at all, which is most of
+			 * the input this platform has.
+			 *
+			 * There is only ever one window on Android, so a window id of zero
+			 * cannot mean "some other window" - which is the only thing this
+			 * check exists to exclude.
+			 */
+			if (getWindowIdForEvent(e) == 0) {
+				return true;
+			}
+#endif
 
 			if ((e.type >= SDL_EVENT_WINDOW_FIRST) && (e.type <= SDL_EVENT_WINDOW_LAST)) {
 				return mainId == e.window.windowID;

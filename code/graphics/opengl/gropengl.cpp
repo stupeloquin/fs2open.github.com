@@ -1623,7 +1623,18 @@ bool gr_opengl_is_capable(gr_capability capability)
 	case gr_capability::CAPABILITY_SEPARATE_BLEND_FUNCTIONS:
 		return GLAD_GL_ARB_draw_buffers_blend != 0; // We need an OpenGL extension for this
 	case gr_capability::CAPABILITY_PERSISTENT_BUFFER_MAPPING:
+#ifdef USE_OPENGL_ES
+		/*
+		 * Off on GLES. This maps to GL_EXT_buffer_storage here (see
+		 * es_compatibility.h), and drivers advertising it have not carried the
+		 * mapped-buffer behaviour the engine expects - the flush of a mapped
+		 * range failed every frame. The ordinary glBufferData path is the
+		 * well-trodden one on this platform and costs a copy, not a frame.
+		 */
+		return false;
+#else
 		return GLAD_GL_ARB_buffer_storage != 0;
+#endif
 	case gr_capability::CAPABILITY_BPTC:
 		return GLAD_GL_ARB_texture_compression_bptc != 0;
 	case gr_capability::CAPABILITY_S3TC:
