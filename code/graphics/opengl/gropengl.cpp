@@ -1413,6 +1413,37 @@ bool gr_opengl_init(std::unique_ptr<os::GraphicsOperations>&& graphicsOps)
 			  (MIN_REQUIRED_GL_VERSION % 10));
 	}
 
+#ifdef __ANDROID__
+	/*
+	 * Render at the size of the surface we were actually given.
+	 *
+	 * With no saved video config, gr_init() falls back to
+	 * SDL_GetDesktopDisplayMode(), which reports the whole display - 2410x1080
+	 * on the device this was found on - while the framework hands the game a
+	 * 2112x1080 surface. The engine then rendered, and more to the point
+	 * hit-tested its interface, in 2410 space while every touch arrived in 2112
+	 * space. A press landed short of the finger, and further short the nearer
+	 * the right edge: on the pilot screen a tap on CREATE came out at design
+	 * x 224, between CREATE at 182 and CLONE at 275, and pressed neither.
+	 *
+	 * Here rather than in gr_opengl_use_viewport, which also resizes but is not
+	 * called on the way up. The window exists by this point, so it can be asked
+	 * how big it really is.
+	 */
+	{
+		int pixel_w = 0, pixel_h = 0;
+		SDL_GetWindowSizeInPixels(os::getSDLMainWindow(), &pixel_w, &pixel_h);
+
+		if (pixel_w > 0 && pixel_h > 0 &&
+			(pixel_w != gr_screen.max_w || pixel_h != gr_screen.max_h)) {
+			mprintf(("Android: asked for %ix%i but the surface is %ix%i - using the surface\n",
+				gr_screen.max_w, gr_screen.max_h, pixel_w, pixel_h));
+
+			gr_screen_resize(pixel_w, pixel_h);
+		}
+	}
+#endif
+
 	// Initialize function pointers
 	if (!gladLoadGLLoader(GL_context->getLoaderFunction())) {
 		Error(LOCATION, "Failed to load OpenGL!");

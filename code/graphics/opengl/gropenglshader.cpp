@@ -230,6 +230,10 @@ static SCP_string opengl_shader_get_header(shader_type type_id, int flags, bool 
 	sflags << "precision highp samplerCube;\n";
 	sflags << "precision highp sampler2DShadow;\n";
 	sflags << "precision highp sampler2DArrayShadow;\n";
+	// The model shaders fetch their transforms from a texture buffer.
+	sflags << "precision highp samplerBuffer;\n";
+	sflags << "precision highp isamplerBuffer;\n";
+	sflags << "precision highp usamplerBuffer;\n";
 #endif
 
 	return sflags.str();
