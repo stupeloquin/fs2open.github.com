@@ -1643,6 +1643,49 @@ void gr_screen_resize(int width, int height)
 	gr_screen.save_max_w_unscaled_zoomed = gr_screen.max_w_unscaled_zoomed;
 	gr_screen.save_max_h_unscaled_zoomed = gr_screen.max_h_unscaled_zoomed;
 
+	/*
+	 * The interface scale factors have to follow the new size.
+	 *
+	 * Everything above updates the dimensions and the clip, but the factors the
+	 * menus are laid out with - Gr_resize_*, Gr_menu_offset_*, Gr_full_resize_* -
+	 * were only ever computed in gr_init_sub, so a resize left them describing
+	 * the old screen. Bitmaps still drew at the new size, because they scale from
+	 * gr_screen, while every UI_GADGET hit test unsized the mouse with the stale
+	 * factors: buttons were tested well below where they were drawn, and no
+	 * button in the game could be clicked. On Android that is every resize, since
+	 * the surface handed to the game is shorter than the display it asked for.
+	 */
+	{
+		const float base_w = (gr_screen.res == GR_1024) ? 1024.0f : 640.0f;
+		const float base_h = (gr_screen.res == GR_1024) ? 768.0f : 480.0f;
+
+		Gr_save_full_resize_X = Gr_full_resize_X = (float)width / base_w;
+		Gr_save_full_resize_Y = Gr_full_resize_Y = (float)height / base_h;
+
+		Gr_save_full_center_resize_X = Gr_full_center_resize_X = (float)gr_screen.center_w / base_w;
+		Gr_save_full_center_resize_Y = Gr_full_center_resize_Y = (float)gr_screen.center_h / base_h;
+
+		if (gr_screen.custom_size && !Cmdline_stretch_menu) {
+			const float center_aspect_ratio = (float)gr_screen.center_w / (float)gr_screen.center_h;
+			const float aspect_quotient = center_aspect_ratio / (4.0f / 3.0f);
+
+			Gr_save_resize_X = Gr_resize_X = Gr_full_center_resize_X / ((aspect_quotient > 1.0f) ? aspect_quotient : 1.0f);
+			Gr_save_resize_Y = Gr_resize_Y = Gr_full_center_resize_Y * ((aspect_quotient < 1.0f) ? aspect_quotient : 1.0f);
+
+			Gr_save_menu_offset_X = Gr_menu_offset_X = ((aspect_quotient > 1.0f) ? ((gr_screen.center_w - gr_screen.center_w / aspect_quotient) / 2.0f) : 0.0f) + gr_screen.center_offset_x;
+			Gr_save_menu_offset_Y = Gr_menu_offset_Y = ((aspect_quotient < 1.0f) ? ((gr_screen.center_h - gr_screen.center_h * aspect_quotient) / 2.0f) : 0.0f) + gr_screen.center_offset_y;
+		} else {
+			Gr_save_resize_X = Gr_resize_X = Gr_full_center_resize_X;
+			Gr_save_resize_Y = Gr_resize_Y = Gr_full_center_resize_Y;
+
+			Gr_save_menu_offset_X = Gr_menu_offset_X = (float)gr_screen.center_offset_x;
+			Gr_save_menu_offset_Y = Gr_menu_offset_Y = (float)gr_screen.center_offset_y;
+		}
+
+		Gr_save_menu_zoomed_offset_X = Gr_menu_zoomed_offset_X = Gr_menu_offset_X;
+		Gr_save_menu_zoomed_offset_Y = Gr_menu_zoomed_offset_Y = Gr_menu_offset_Y;
+	}
+
 	gr_setup_viewport();
 }
 

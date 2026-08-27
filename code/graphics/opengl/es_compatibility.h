@@ -162,6 +162,63 @@ static inline void glTexSubImage3D(GLenum target, GLint level, GLint xoff, GLint
 	glad_glTexSubImage3D(target, level, xoff, yoff, zoff, w, h, d, format, type, data);
 }
 
+/*
+ * BGRA is not an upload format in GLES the way it is on the desktop. With
+ * GL_EXT_texture_format_BGRA8888 it is only accepted when the internal format
+ * matches it, so the RGBA-internal / BGRA-external pairing the engine uses
+ * everywhere is rejected outright: "the combination of format 32993 and type
+ * 5121 is unsupported", which is GL_BGRA and GL_UNSIGNED_BYTE. Swizzle the
+ * pixels and tell GL the truth instead.
+ *
+ * Returns true and uploads nothing if the caller should carry on unchanged.
+ */
+static inline bool es_swizzle_bgra(GLenum& format, GLenum& type, const void* data, size_t npx,
+                                  std::vector<uint8_t>& scratch)
+{
+	const bool bgra = (format == GL_BGRA) &&
+	                  (type == GL_UNSIGNED_BYTE || type == GL_UNSIGNED_INT_8_8_8_8_REV);
+	const bool bgr = (format == GL_BGR) && (type == GL_UNSIGNED_BYTE);
+
+	if (!bgra && !bgr) {
+		return false;
+	}
+
+	format = bgra ? GL_RGBA : GL_RGB;
+	type = GL_UNSIGNED_BYTE;
+
+	if (data == nullptr) {
+		// Allocating the texture, no pixels to reorder.
+		return true;
+	}
+
+	scratch.resize(npx * (bgra ? 4 : 3));
+
+	if (bgra) {
+		graphics::util::convert_BGRA8888_to_RGBA8888(static_cast<const uint8_t*>(data), scratch.data(), npx);
+	} else {
+		graphics::util::convert_BGR_to_RGB(static_cast<const uint8_t*>(data), scratch.data(), npx);
+	}
+
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	return true;
+}
+
+#ifdef glTexSubImage2D
+#undef glTexSubImage2D
+#endif
+static inline void glTexSubImage2D(GLenum target, GLint level, GLint xoff, GLint yoff, GLsizei width, GLsizei height, GLenum format, GLenum type, const void* data)
+{
+	std::vector<uint8_t> scratch;
+
+	if (es_swizzle_bgra(format, type, data, size_t(width) * size_t(height), scratch)) {
+		glad_glTexSubImage2D(target, level, xoff, yoff, width, height, format, type,
+		                     scratch.empty() ? data : scratch.data());
+		return;
+	}
+
+	glad_glTexSubImage2D(target, level, xoff, yoff, width, height, format, type, data);
+}
+
 #ifdef glTexImage2D
 #undef glTexImage2D
 #endif
@@ -170,6 +227,21 @@ static inline void glTexImage2D(GLenum target, GLint level, GLint internalformat
 	if (internalformat == GL_RGBA16F) {
 		glad_glTexImage2D(target, level, internalformat, width, height, border, GL_RGBA, GL_HALF_FLOAT, data);
 	} else if (internalformat == GL_RGBA8) {
+		/*
+		 * Reorder the pixels rather than just relabelling them. This branch used
+		 * to hand BGRA bytes to GL as GL_RGBA, which the driver accepts and
+		 * draws with red and blue swapped - no error, just wrong colours.
+		 */
+		std::vector<uint8_t> scratch;
+		GLenum sub_format = format;
+		GLenum sub_type = type;
+
+		if (es_swizzle_bgra(sub_format, sub_type, data, size_t(width) * size_t(height), scratch)) {
+			glad_glTexImage2D(target, level, internalformat, width, height, border, sub_format, sub_type,
+			                  scratch.empty() ? data : scratch.data());
+			return;
+		}
+
 		glad_glTexImage2D(target, level, internalformat, width, height, border, GL_RGBA, GL_UNSIGNED_BYTE, data);
 	} else if (internalformat == GL_DEPTH_COMPONENT24) {
 		glad_glTexImage2D(target, level, internalformat, width, height, border, format, GL_UNSIGNED_INT, data);

@@ -975,6 +975,25 @@ void gr_opengl_use_viewport(os::Viewport* view) {
 	current_viewport = view;
 
 	auto size = view->getSize();
+
+#ifdef __ANDROID__
+	/*
+	 * The viewport reports the size that was asked for, not the surface that was
+	 * handed over, and this runs after the display is up - so it puts back the
+	 * mismatch the correction in gr_opengl_init had just removed. Ask the window
+	 * how big it really is here as well.
+	 */
+	{
+		int pixel_w = 0, pixel_h = 0;
+		SDL_GetWindowSizeInPixels(os::getSDLMainWindow(), &pixel_w, &pixel_h);
+
+		if (pixel_w > 0 && pixel_h > 0) {
+			size.first = (uint32_t)pixel_w;
+			size.second = (uint32_t)pixel_h;
+		}
+	}
+#endif
+
 	gr_screen_resize(size.first, size.second);
 }
 
